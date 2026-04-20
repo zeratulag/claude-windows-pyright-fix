@@ -3,25 +3,27 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 ![Language](https://img.shields.io/badge/language-C%2B%2B17-00599C)
 ![License](https://img.shields.io/badge/license-MIT-2EA043)
-![Purpose](https://img.shields.io/badge/purpose-Claude%20Code%20Pyright%20fix-8A2BE2)
+![Type](https://img.shields.io/badge/type-shim-8A2BE2)
 
-[简体中文](#简体中文) | [English](#english)
+A tiny Windows shim that fixes Claude Code failing to launch `pyright-langserver`.
+
+一个极小型的 Windows shim，用来修复 Claude Code 在 Windows 上无法正确启动 `pyright-langserver` 的问题。
 
 ---
 
-## 简体中文
+## Chinese
 
-### 项目简介
+### 简介
 
-这是一个极小型的 Windows shim，用来修复 Claude Code 在 Windows 上启动 `pyright-langserver` 失败的问题。
+这个项目提供了一个同名的 `pyright-langserver.exe` 包装器。
 
-它不依赖修改 Claude 自动生成的配置文件，而是提供一个 `pyright-langserver.exe` 包装器，由这个包装器主动搜索真实的 `pyright-langserver.cmd`，再以绝对路径启动它。
+当 Claude Code 在 Windows 上尝试启动 `pyright-langserver` 时，这个包装器会主动搜索真实的 `pyright-langserver.cmd`，再以绝对路径启动它，从而避免直接修改 Claude 自动生成的配置文件。
 
 ### 为什么会有这个项目
 
-在社区 issue [anthropics/claude-code#16751](https://github.com/anthropics/claude-code/issues/16751) 中，问题被归因于 Windows 下 `pyright-langserver` 通常实际以 `.cmd` wrapper 的形式存在，而启动路径没有正确处理这种情况。
+在社区 issue [anthropics/claude-code#16751](https://github.com/anthropics/claude-code/issues/16751) 中，问题被归因于 Windows 下 `pyright-langserver` 通常以 `.cmd` wrapper 的形式存在，而启动路径没有正确处理这种情况。
 
-基于这个思路，一个传统的手工修复方式是直接修改 Claude 生成的 `marketplace.json`，把：
+基于这个思路，一个常见的传统修复方式是直接修改 Claude 生成的 `marketplace.json`，把：
 
 ```json
 "command": "pyright-langserver"
@@ -33,9 +35,17 @@
 "command": "pyright-langserver.cmd"
 ```
 
-这个办法通常能暂时生效，但缺点也很明显：`marketplace.json` 可能会被 Claude 后续自动覆盖，所以修复不稳定。
+这个办法通常能暂时生效，但不够稳定，因为 `marketplace.json` 可能会被 Claude 后续自动覆盖。
 
-这个项目的目标，就是把修复点从“改 Claude 的生成物”改成“补一个稳定的 Windows 可执行入口”。
+这个项目的目标，是把修复点从“修改 Claude 生成文件”转成“提供一个稳定的 Windows 可执行入口”。
+
+### 特性
+
+- 不修改 Claude 生成的 `marketplace.json`
+- 自动搜索真实的 `pyright-langserver.cmd`
+- 使用绝对路径启动，避免路径解析绕回自身
+- 透传命令行参数、`stdin`、`stdout`、`stderr` 和退出码
+- 只有一个源文件，构建和部署都很轻量
 
 ### 工作方式
 
@@ -44,24 +54,18 @@
 1. `pyright-langserver.exe` 所在目录
 2. `PATH` 环境变量中的每个目录
 
-找到后会透传：
+如果找到，就通过 `cmd.exe` 启动真实的 `.cmd`，并把当前调用完整转发过去。
 
-- 命令行参数
-- 标准输入
-- 标准输出
-- 标准错误
-- 退出码
-
-如果找不到 `pyright-langserver.cmd`，程序会输出错误信息并以非 0 退出。
+如果找不到，程序会输出错误信息并以非 0 退出。
 
 ### 构建前提
 
-构建前请确认：
+请确认：
 
 - 运行环境是 Windows
 - 已安装 LLVM，并且 `clang++` 在 `PATH` 中
 - 可以使用 Windows SDK 头文件和库
-- 当前目录可写，用于输出 `pyright-langserver.exe`
+- 当前目录可写，用于生成 `pyright-langserver.exe`
 
 ### 构建
 
@@ -71,7 +75,7 @@
 build.bat
 ```
 
-如果你想手动编译，也可以执行：
+或手动编译：
 
 ```powershell
 clang++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX src\main.cpp -o pyright-langserver.exe
@@ -79,12 +83,12 @@ clang++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -DUNICODE -D_UNICODE -DWIN32_LEA
 
 ### 部署前提
 
-部署前请确认：
+请确认：
 
 - 已安装 Claude Code
 - 已通过 `npm install -g pyright` 安装 Pyright
-- 系统里确实存在真实的 `pyright-langserver.cmd`
-- 你准备放置 `pyright-langserver.exe` 的位置会被 Claude 优先解析
+- 系统中确实存在真实的 `pyright-langserver.cmd`
+- 你放置 `pyright-langserver.exe` 的位置会被 Claude 优先解析
 
 ### 部署
 
@@ -118,9 +122,9 @@ pyright-langserver.exe --stdio
 
 ### 文件
 
-- `src/main.cpp`：主实现
-- `build.bat`：构建脚本
-- `LICENSE`：MIT 许可证
+- `src/main.cpp`: 主实现
+- `build.bat`: 构建脚本
+- `LICENSE`: MIT 许可证
 
 ---
 
@@ -128,9 +132,9 @@ pyright-langserver.exe --stdio
 
 ### Overview
 
-This is a tiny Windows shim that fixes Claude Code failing to launch `pyright-langserver` on Windows.
+This project provides a same-name `pyright-langserver.exe` wrapper.
 
-Instead of editing Claude-generated configuration, this project provides a `pyright-langserver.exe` wrapper. The wrapper searches for the real `pyright-langserver.cmd` and launches it by absolute path.
+When Claude Code tries to launch `pyright-langserver` on Windows, the wrapper searches for the real `pyright-langserver.cmd` and launches it by absolute path, avoiding direct edits to Claude-generated configuration files.
 
 ### Why This Exists
 
@@ -148,30 +152,32 @@ to:
 "command": "pyright-langserver.cmd"
 ```
 
-That workaround can help temporarily, but it is fragile because `marketplace.json` may be regenerated or overwritten by Claude later.
+That workaround can help temporarily, but it is fragile because `marketplace.json` may later be regenerated or overwritten by Claude.
 
-This project exists to move the fix away from "patch Claude's generated files" and toward "provide a stable Windows executable entry point".
+This project moves the fix away from "patch Claude's generated files" and toward "provide a stable Windows executable entry point".
+
+### Features
+
+- avoids editing Claude-generated `marketplace.json`
+- automatically finds the real `pyright-langserver.cmd`
+- launches by absolute path to avoid recursive path resolution
+- forwards command-line arguments, `stdin`, `stdout`, `stderr`, and exit code
+- keeps the project tiny with a single source file
 
 ### How It Works
 
 The shim looks for the real `pyright-langserver.cmd` in this order:
 
-1. The directory containing `pyright-langserver.exe`
-2. Every directory listed in `PATH`
+1. the directory containing `pyright-langserver.exe`
+2. every directory listed in `PATH`
 
-When found, the shim forwards:
+If found, it launches the real `.cmd` through `cmd.exe` and forwards the current invocation to it.
 
-- command-line arguments
-- stdin
-- stdout
-- stderr
-- exit code
-
-If `pyright-langserver.cmd` cannot be found, the shim prints an error and exits with a non-zero code.
+If not found, it prints an error and exits with a non-zero code.
 
 ### Build Prerequisites
 
-Before building, make sure:
+Make sure:
 
 - you are on Windows
 - LLVM is installed and `clang++` is available in `PATH`
@@ -194,12 +200,12 @@ clang++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -DUNICODE -D_UNICODE -DWIN32_LEA
 
 ### Deploy Prerequisites
 
-Before deploying, make sure:
+Make sure:
 
 - Claude Code is installed
 - Pyright is installed via `npm install -g pyright`
-- the real `pyright-langserver.cmd` actually exists on the system
-- the location where you place `pyright-langserver.exe` will be resolved by Claude before the original command
+- the real `pyright-langserver.cmd` exists on the system
+- the location where you place `pyright-langserver.exe` is resolved by Claude before the original command
 
 ### Deploy
 
@@ -211,7 +217,7 @@ where.exe pyright-langserver.cmd
 
 Then place the built `pyright-langserver.exe` somewhere Claude will resolve first. The simplest option is to put it in the same directory as the real `pyright-langserver.cmd`.
 
-After deployment, verify command resolution:
+After deployment, verify resolution:
 
 ```powershell
 where.exe pyright-langserver
